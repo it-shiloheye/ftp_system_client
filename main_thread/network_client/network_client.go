@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	initialiseclient "github.com/it-shiloheye/ftp_system/client/init_client"
-	"github.com/it-shiloheye/ftp_system/client/main_thread/logging"
+	initialiseclient "github.com/it-shiloheye/ftp_system_client/init_client"
+	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 	ftp_tlshandler "github.com/it-shiloheye/ftp_system_lib/tls_handler/v2"
 )

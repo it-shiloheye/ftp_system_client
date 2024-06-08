@@ -13,11 +13,11 @@ import (
 	"log"
 	"time"
 
-	initialiseclient "github.com/it-shiloheye/ftp_system/client/init_client"
-	// "github.com/it-shiloheye/ftp_system/client/main_thread/actions"
-	dir_handler "github.com/it-shiloheye/ftp_system/client/main_thread/dir_handler"
-	"github.com/it-shiloheye/ftp_system/client/main_thread/logging"
-	netclient "github.com/it-shiloheye/ftp_system/client/main_thread/network_client"
+	initialiseclient "github.com/it-shiloheye/ftp_system_client/init_client"
+	// "github.com/it-shiloheye/ftp_system_client/main_thread/actions"
+	dir_handler "github.com/it-shiloheye/ftp_system_client/main_thread/dir_handler"
+	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
+	netclient "github.com/it-shiloheye/ftp_system_client/main_thread/network_client"
 
 	ftp_base "github.com/it-shiloheye/ftp_system_lib/base"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"

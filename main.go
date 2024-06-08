@@ -4,9 +4,9 @@ import (
 	"log"
 	"time"
 
-	initialiseclient "github.com/it-shiloheye/ftp_system/client/init_client"
-	mainthread "github.com/it-shiloheye/ftp_system/client/main_thread"
-	"github.com/it-shiloheye/ftp_system/client/main_thread/logging"
+	initialiseclient "github.com/it-shiloheye/ftp_system_client/init_client"
+	mainthread "github.com/it-shiloheye/ftp_system_client/main_thread"
+	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
 
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 )

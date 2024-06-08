@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	initialiseclient "github.com/it-shiloheye/ftp_system/client/init_client"
+	initialiseclient "github.com/it-shiloheye/ftp_system_client/init_client"
 	ftp_base "github.com/it-shiloheye/ftp_system_lib/base"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 	"github.com/it-shiloheye/ftp_system_lib/file_handler/v2"

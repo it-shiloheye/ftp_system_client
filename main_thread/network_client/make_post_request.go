@@ -4,7 +4,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/it-shiloheye/ftp_system/client/main_thread/logging"
+	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 )
 
