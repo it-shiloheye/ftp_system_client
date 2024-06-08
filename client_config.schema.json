@@ -1,0 +1,38 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "./client_config.schema.json",
+	"local_ip": "",
+ 	"web_ip": "",
+ 	"ca_location": "",
+ 	"client_id": "",
+ 	"common_name": "",
+ 	"all_dirs": {
+ 		"id": "",
+ 		"path": "",
+ 		"exclude_dir": [
+ 			""
+ 		],
+ 		"exclude_file": [
+ 			""
+ 		],
+ 		"exclude_regex": [],
+ 		"follow_symlink": false,
+ 		"include_dir": [""],
+ 		"include_ext": [],
+ 		"include_file": [],
+ 		"update_rate_seconds": 0
+ 	},
+ 	"subscribe_dirs": [
+ 		{
+ 			"client_id": "",
+ 			"dirs_id": "",
+ 			"pull_changes": false,
+ 			"push_changes": false,
+ 			"push_changes_frequency": 0
+ 		}
+ 	],
+ 	"server_ips": [],
+ 	"log_dir": "./logs",
+ 	"stop_on_error": true
+ }
+ 

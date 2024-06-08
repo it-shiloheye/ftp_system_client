@@ -1,0 +1,6 @@
+package mainthread
+
+
+func init(){
+	
+}
