@@ -70,7 +70,7 @@ func MainThread(ctx ftp_context.Context) context.Context {
 
 	test_server_connection(client, base_server, tyc)
 
-	go UpdateFileTree(ctx.Add())
+	go UpdateFileTree(ctx.Add(), ClientConfig.DataDir+"/file-tree.lock")
 
 	bts := filehandler.NewBytesStore()
 	buf := bytes.NewBuffer(make([]byte, 100_000))
@@ -178,7 +178,7 @@ func test_server_connection(client *http.Client, host string, tsc *TestServerCon
 
 	Logger.Logf(loc, "server connected successfully: %s", host)
 }
-func UpdateFileTree(ctx ftp_context.Context) {
+func UpdateFileTree(ctx ftp_context.Context, lock_file_p string) {
 	loc := logging.Loc("UpdateFileTree(ctx ftp_context.Context)")
 
 	defer ctx.Finished()
@@ -189,7 +189,7 @@ func UpdateFileTree(ctx ftp_context.Context) {
 		case _, ok = <-ctx.Done():
 		}
 
-		err := dir_handler.WriteFileTree(ctx)
+		err := dir_handler.WriteFileTree(ctx, lock_file_p)
 		if err != nil {
 			Logger.LogErr(loc, err)
 		}

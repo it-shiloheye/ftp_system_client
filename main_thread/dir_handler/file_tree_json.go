@@ -89,15 +89,15 @@ func NewFileTreeJson() *FileTreeJson {
 	}
 }
 
-func WriteFileTree(ctx ftp_context.Context) (err ftp_context.LogErr) {
+func WriteFileTree(ctx ftp_context.Context, lock_file_p string) (err ftp_context.LogErr) {
 	loc := logging.Loc("WriteFileTree() (err ftp_context.LogErr)")
 	FileTree.RLock()
 	defer FileTree.RUnlock()
-	l, err1 := Lock(ClientConfig.DataDir + "/file-tree.lock")
+	l, err1 := Lock(lock_file_p)
 	if err1 != nil {
 		Logger.LogErr(loc, err1)
 		<-time.After(time.Second * 5)
-		return WriteFileTree(ctx)
+		return WriteFileTree(ctx, lock_file_p)
 	}
 	defer l.Unlock()
 
