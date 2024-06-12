@@ -124,6 +124,25 @@ func WriteFileTree(ctx ftp_context.Context, lock_file_p string) (err ftp_context
 	return
 }
 
+func UpdateFileTree(ctx ftp_context.Context, lock_file_p string) {
+	loc := logging.Loc("UpdateFileTree(ctx ftp_context.Context)")
+
+	defer ctx.Finished()
+	tc := time.NewTicker(time.Minute)
+	for ok := true; ok; {
+		select {
+		case <-tc.C:
+		case _, ok = <-ctx.Done():
+		}
+
+		err := WriteFileTree(ctx, lock_file_p)
+		if err != nil {
+			Logger.LogErr(loc, err)
+		}
+		Logger.Logf(loc, "updated filetree successfully")
+	}
+}
+
 func (ft *FileTreeJson) Lock() {
 	ft.lock.Lock()
 
