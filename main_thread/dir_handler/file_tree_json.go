@@ -89,19 +89,18 @@ func NewFileTreeJson() *FileTreeJson {
 	}
 }
 
-func WriteFileTree(ctx ftp_context.Context, lock_file_p string) (err ftp_context.LogErr) {
+func WriteFileTree(ctx ftp_context.Context, lock_file_p string, file_tree_path string) (err ftp_context.LogErr) {
 	loc := logging.Loc("WriteFileTree() (err ftp_context.LogErr)")
 	FileTree.RLock()
 	defer FileTree.RUnlock()
-	l, err1 := Lock(lock_file_p)
+	l, err1 := filehandler.Lock(lock_file_p)
 	if err1 != nil {
 		Logger.LogErr(loc, err1)
 		<-time.After(time.Second * 5)
-		return WriteFileTree(ctx, lock_file_p)
+		return WriteFileTree(ctx, lock_file_p, file_tree_path)
 	}
 	defer l.Unlock()
 
-	file_tree_path := ClientConfig.DataDir + "/file-tree.json"
 	tmp, err1 := json.MarshalIndent(FileTree, " ", "\t")
 	if err1 != nil {
 		return &ftp_context.LogItem{Location: string(loc), Time: time.Now(),
@@ -124,7 +123,7 @@ func WriteFileTree(ctx ftp_context.Context, lock_file_p string) (err ftp_context
 	return
 }
 
-func UpdateFileTree(ctx ftp_context.Context, lock_file_p string) {
+func UpdateFileTree(ctx ftp_context.Context, lock_file_p string, file_tree_path string) {
 	loc := logging.Loc("UpdateFileTree(ctx ftp_context.Context)")
 
 	defer ctx.Finished()
@@ -135,7 +134,7 @@ func UpdateFileTree(ctx ftp_context.Context, lock_file_p string) {
 		case _, ok = <-ctx.Done():
 		}
 
-		err := WriteFileTree(ctx, lock_file_p)
+		err := WriteFileTree(ctx, lock_file_p, file_tree_path)
 		if err != nil {
 			Logger.LogErr(loc, err)
 		}

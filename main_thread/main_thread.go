@@ -70,7 +70,7 @@ func MainThread(ctx ftp_context.Context) context.Context {
 
 	test_server_connection(client, base_server, tyc)
 
-	go dir_handler.WriteFileTree(ctx.Add(), ClientConfig.DataDir+"/file-tree.lock")
+	go dir_handler.UpdateFileTree(ctx.Add(), ClientConfig.DataDir+"/file-tree.lock", ClientConfig.DataDir+"/file-tree.json")
 
 	bts := filehandler.NewBytesStore()
 	buf := bytes.NewBuffer(make([]byte, 100_000))
