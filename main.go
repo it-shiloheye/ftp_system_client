@@ -6,6 +6,7 @@ import (
 
 	initialiseclient "github.com/it-shiloheye/ftp_system_client/init_client"
 	mainthread "github.com/it-shiloheye/ftp_system_client/main_thread"
+	"github.com/it-shiloheye/ftp_system_client/main_thread/dir_handler"
 	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
 
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
@@ -20,6 +21,7 @@ func main() {
 	if ClientConfig == nil {
 		log.Fatalln("no client config")
 	}
+	dir_handler.InitialiseFileTree(ClientConfig.DataDir + "/file-tree.json")
 
 	Logger.Logf(loc, "new client started: %s", ClientConfig.Id)
 	ctx := ftp_context.CreateNewContext()

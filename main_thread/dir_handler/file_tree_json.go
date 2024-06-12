@@ -44,11 +44,15 @@ type FileTreeJson struct {
 }
 
 func init() {
+
+}
+
+func InitialiseFileTree(file_tree_path string) {
 	log.Println("loading filetree")
 
 	FileTree.Lock()
 	defer FileTree.Unlock()
-	file_tree_path := ClientConfig.DataDir + "/file-tree.json"
+
 	log.Println(file_tree_path)
 	b, err1 := os.ReadFile(file_tree_path)
 	if err1 != nil {
