@@ -10,6 +10,7 @@ import (
 
 	"os"
 
+	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 
 	ftp_base "github.com/it-shiloheye/ftp_system_lib/base"
@@ -28,6 +29,10 @@ const (
 	FileStateToUpload   FileState = "to-upload"
 	FileStateDownloaded FileState = "downloaded"
 	FileStateToDownload FileState = "to-download"
+	FileStateDeleted    FileState = "deleted"
+	FileStateToDelete   FileState = "to-delete"
+	FileStateToPull     FileState = "to-pull"
+	FileStateToPush     FileState = "to-push"
 )
 
 type FileTreeJson struct {
@@ -81,14 +86,21 @@ func NewFileTreeJson() *FileTreeJson {
 }
 
 func WriteFileTree(ctx ftp_context.Context) (err ftp_context.LogErr) {
-	loc := "WriteFileTree() (err ftp_context.LogErr)"
+	loc := logging.Loc("WriteFileTree() (err ftp_context.LogErr)")
 	FileTree.RLock()
 	defer FileTree.RUnlock()
+	l, err1 := Lock(ClientConfig.DataDir + "/file-tree.lock")
+	if err1 != nil {
+		Logger.LogErr(loc, err1)
+		<-time.After(time.Second * 5)
+		return WriteFileTree(ctx)
+	}
+	defer l.Unlock()
 
 	file_tree_path := ClientConfig.DataDir + "/file-tree.json"
 	tmp, err1 := json.MarshalIndent(FileTree, " ", "\t")
 	if err1 != nil {
-		return &ftp_context.LogItem{Location: loc, Time: time.Now(),
+		return &ftp_context.LogItem{Location: string(loc), Time: time.Now(),
 			Err:       true,
 			After:     `tmp, err1 := json.MarshalIndent(FileTree, " ", "\t")`,
 			Message:   err1.Error(),
@@ -97,7 +109,7 @@ func WriteFileTree(ctx ftp_context.Context) (err ftp_context.LogErr) {
 	}
 	err2 := os.WriteFile(file_tree_path, tmp, fs.FileMode(ftp_base.S_IRWXU|ftp_base.S_IRWXO))
 	if err2 != nil {
-		return &ftp_context.LogItem{Location: loc, Time: time.Now(),
+		return &ftp_context.LogItem{Location: string(loc), Time: time.Now(),
 			Err:       true,
 			After:     `err2 := os.WriteFile(file_tree_path, tmp, fs.FileMode(ftp_base.S_IRWXU|ftp_base.S_IRWXO))`,
 			Message:   err2.Error(),
@@ -107,8 +119,6 @@ func WriteFileTree(ctx ftp_context.Context) (err ftp_context.LogErr) {
 
 	return
 }
-
-var tc = time.NewTimer(time.Millisecond)
 
 func (ft *FileTreeJson) Lock() {
 	ft.lock.Lock()

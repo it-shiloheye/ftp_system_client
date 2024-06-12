@@ -1,1 +1,1 @@
-powershell "Get-ChildItem * -Include *.lock -Recurse | Remove-Item"
+powershell "Get-ChildItem ./* -Include *.lock -Recurse | Remove-Item"
