@@ -1,6 +1,5 @@
 package mainthread
 
+func init() {
 
-func init(){
-	
 }

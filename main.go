@@ -17,6 +17,7 @@ var ClientConfig = initialiseclient.ClientConfig
 var Logger = logging.Logger
 
 func main() {
+	initialiseclient.InitialiseClientConfig()
 	loc := logging.Loc("main")
 	if ClientConfig == nil {
 		log.Fatalln("no client config")
@@ -28,12 +29,12 @@ func main() {
 	defer ctx.Wait()
 
 	go Logger.Engine(ctx.Add())
-	go UpdateConfig(ctx.Add())
+	go UpdateClientConfig(ClientConfig.DataDir+"/config.lock", ctx.Add())
 	mainthread.MainThread(ctx.Add())
 
 }
 
-func UpdateConfig(ctx ftp_context.Context) {
+func UpdateClientConfig(lock_file_p string, ctx ftp_context.Context) {
 	loc := logging.Loc("UpdateConfig(ctx ftp_context.Context)")
 	defer ctx.Finished()
 	tc := time.NewTicker(time.Minute)
@@ -43,7 +44,7 @@ func UpdateConfig(ctx ftp_context.Context) {
 		case _, ok = <-ctx.Done():
 		}
 
-		err := initialiseclient.WriteConfig()
+		err := initialiseclient.WriteClientConfig(lock_file_p)
 		if err != nil {
 			Logger.LogErr(loc, err)
 		}

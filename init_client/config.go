@@ -46,6 +46,10 @@ func ReadConfig(file_path string) (sc ClientConfigStruct, err error) {
 }
 
 func init() {
+
+}
+
+func InitialiseClientConfig() {
 	log.Println("loading config")
 	*ClientConfig = BlankClientConfigStruct()
 
@@ -75,12 +79,11 @@ func init() {
 	log.Println("successfull loaded config")
 }
 
-func WriteConfig(i ...int) (err ftp_context.LogErr) {
+func WriteClientConfig(lock_file_p string, i ...int) (err ftp_context.LogErr) {
 	loc := "WriteConfig() (err ftp_context.LogErr)"
 
-	lock_file := ClientConfig.DataDir + "/config.lock"
-	log.Println(lock_file)
-	l, err3 := filehandler.Lock(lock_file)
+	log.Println(lock_file_p)
+	l, err3 := filehandler.Lock(lock_file_p)
 	if err3 != nil {
 		i_i := 0
 		if len(i) > 0 {
@@ -88,7 +91,7 @@ func WriteConfig(i ...int) (err ftp_context.LogErr) {
 		}
 		if i_i < 5 {
 			<-time.After(time.Second * 5)
-			err = WriteConfig(i_i + 2)
+			err = WriteClientConfig(lock_file_p, i_i+2)
 			log.Println("try ", i_i, "to write config")
 			return
 		}
@@ -96,7 +99,7 @@ func WriteConfig(i ...int) (err ftp_context.LogErr) {
 			Location: loc,
 			Time:     time.Now(),
 			Err:      true,
-			After:    fmt.Sprintf(`l, err3  := filehandler.Lock(%s)`, lock_file),
+			After:    fmt.Sprintf(`l, err3  := filehandler.Lock(%s)`, lock_file_p),
 			Message:  "not able to obtain lock",
 		}
 		return
