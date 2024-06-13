@@ -10,12 +10,14 @@ import (
 
 	"os"
 
+	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
 	"github.com/it-shiloheye/ftp_system_lib/base"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 	filehandler "github.com/it-shiloheye/ftp_system_lib/file_handler/v2"
 )
 
 var ClientConfig = &ClientConfigStruct{}
+var Logger = logging.Logger
 
 func (sc ClientConfigStruct) WriteConfig(file_path string) error {
 
@@ -47,6 +49,24 @@ func ReadConfig(file_path string) (sc ClientConfigStruct, err error) {
 
 func init() {
 
+}
+
+func UpdateClientConfig(lock_file_p string, ctx ftp_context.Context) {
+	loc := logging.Loc("UpdateConfig(ctx ftp_context.Context)")
+	defer ctx.Finished()
+	tc := time.NewTicker(time.Minute)
+	for ok := true; ok; {
+		select {
+		case <-tc.C:
+		case _, ok = <-ctx.Done():
+		}
+
+		err := WriteClientConfig(lock_file_p + "/config.lock")
+		if err != nil {
+			Logger.LogErr(loc, err)
+		}
+		Logger.Logf(loc, "updated config successfully")
+	}
 }
 
 func InitialiseClientConfig() {
