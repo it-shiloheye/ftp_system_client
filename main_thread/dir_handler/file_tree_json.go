@@ -38,8 +38,10 @@ const (
 type FileTreeJson struct {
 	lock       sync.RWMutex
 	Extensions map[string]bool
-	FileMap    ftp_base.MutexedMap[*filehandler.FileHash] `json:"files"`
+	// uses file_path as key on client | uses file_hash as key on server
+	FileMap ftp_base.MutexedMap[*filehandler.FileHash] `json:"files"`
 
+	// uses file_path as key on client | uses file_hash as key on server
 	FileState ftp_base.MutexedMap[FileState] `json:"file_state"`
 }
 

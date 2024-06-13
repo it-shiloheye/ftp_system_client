@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +20,7 @@ import (
 
 	"github.com/google/uuid"
 	initialiseclient "github.com/it-shiloheye/ftp_system_client/init_client"
+
 	// "github.com/it-shiloheye/ftp_system_client/main_thread/actions"
 	dir_handler "github.com/it-shiloheye/ftp_system_client/main_thread/dir_handler"
 	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
@@ -142,6 +145,11 @@ func MainThread(ctx ftp_context.Context) context.Context {
 			}
 
 			<-post_tckr.C
+			fh, ok := FileTree.FileMap.Get(file_)
+			if ok {
+
+				ConfirmFunction(client, fh.Hash)
+			}
 
 		}
 		// child_ctx.Cancel()
@@ -240,7 +248,7 @@ func UploadingFunction(ctx ftp_context.Context, client *http.Client, buf *bytes.
 	loc := logging.Loc(`UploadingFunction(client *http.Client, file_p string)`)
 
 	client_id := ClientConfig.ClientId
-	dir_id := ClientConfig.DirConfig.Id
+	dir_id := ClientConfig.DirConfig.DirId
 
 	fh, _ := FileTree.FileMap.Get(file_p)
 	route := ClientConfig.ServerIps[0] + "/upload/file/" + fh.Hash
@@ -249,7 +257,7 @@ func UploadingFunction(ctx ftp_context.Context, client *http.Client, buf *bytes.
 	}
 	fh.Set("client-id", client_id)
 	fh.Set("dir-id", dir_id)
-
+	var err7 error
 	data, err1 := json.Marshal(fh)
 	if err1 != nil {
 
@@ -355,11 +363,30 @@ func UploadingFunction(ctx ftp_context.Context, client *http.Client, buf *bytes.
 	buf.Reset()
 	buf.Write(data)
 
-	res, err7 := client.Post(route, "application/json", buf)
-	if err7 != nil {
-		log.Fatalln(err7)
+	for i := 0; ; i++ {
+		res, err7 = client.Post(route, "application/json", buf)
+		if err7 != nil {
+			if errors.Is(err7, net.ErrClosed) {
+				if i >= 5 {
+					return Logger.LogErr(loc, &ftp_context.LogItem{
+						Location:  string(loc),
+						After:     fmt.Sprintf(`res, err7 := client.Post(route: "%s", "application/json", buf)`, route),
+						Message:   err7.Error(),
+						CallStack: []error{err7},
+					})
+				}
+				<-time.After(time.Second)
+				continue
+			}
+			return Logger.LogErr(loc, &ftp_context.LogItem{
+				Location:  string(loc),
+				After:     fmt.Sprintf(`res, err7 := client.Post(route: "%s", "application/json", buf)`, route),
+				Message:   err7.Error(),
+				CallStack: []error{err7},
+			})
+		}
+		break
 	}
-
 	data, err8 := io.ReadAll(res.Body)
 	if err8 != nil {
 
@@ -400,4 +427,80 @@ func UploadingFunction(ctx ftp_context.Context, client *http.Client, buf *bytes.
 func DownloadingFunction(client *http.Client, file_p string) error {
 
 	return nil
+}
+
+func ConfirmFunction(client *http.Client, file_p string) error {
+	loc := logging.Locf(`ConfirmFunction(client *http.Client, file_hash:"%s") error`, file_p)
+
+	fh, ok := FileTree.FileMap.Get(file_p)
+	if !ok {
+		FileTree.FileState.Set(file_p, dir_handler.FileStateToUpload)
+		return nil
+	}
+
+	route := ClientConfig.ServerIps[0] + "/upload/confirm/" + fh.Hash
+	// client_id := ClientConfig.ClientId
+	// dir_id := ClientConfig.DirConfig.DirId
+
+	res, err1 := client.Get(route)
+	if err1 != nil {
+
+		return Logger.LogErr(loc, &ftp_context.LogItem{
+			Location:  string(loc),
+			Time:      time.Now(),
+			After:     fmt.Sprintf(`res, err1 := client.Get(route: %s)`, route),
+			Message:   err1.Error(),
+			CallStack: []error{err1},
+		})
+	}
+
+	tmp := map[string]string{}
+
+	d, err2 := io.ReadAll(res.Request.Body)
+	res.Request.Body.Close()
+	if err2 != nil {
+		return Logger.LogErr(loc, &ftp_context.LogItem{
+			Time:      time.Now(),
+			Location:  string(loc),
+			After:     `d, err2 := io.ReadAll(res.Request.Body)`,
+			Message:   err2.Error(),
+			CallStack: []error{err2},
+		})
+	}
+	err3 := json.Unmarshal(d, &tmp)
+	if err3 != nil {
+		return Logger.LogErr(loc, &ftp_context.LogItem{
+			Time:      time.Now(),
+			Location:  string(loc),
+			After:     `err3 := json.Unmarshal(d,&tmp)`,
+			Message:   err3.Error(),
+			CallStack: []error{err3},
+		})
+	}
+
+	state, ok := tmp["state"]
+	if !ok {
+		return Logger.LogErr(loc, &ftp_context.LogItem{
+			Location:  string(loc),
+			Time:      time.Now(),
+			After:     `state, ok := tmp["state"]`,
+			Message:   fmt.Sprintf("server response is invalid:\n%s", string(d)),
+			CallStack: []error{},
+		})
+	}
+	switch state {
+	case "missing":
+		FileTree.FileState.Set(file_p, dir_handler.FileStateToUpload)
+		return nil
+	case "uploaded":
+		return nil
+	default:
+		return Logger.LogErr(loc, &ftp_context.LogItem{
+			Location:  string(loc),
+			Time:      time.Now(),
+			After:     `state, ok := tmp["state"]`,
+			Message:   fmt.Sprintf("server response is invalid:\n%s", string(d)),
+			CallStack: []error{},
+		})
+	}
 }

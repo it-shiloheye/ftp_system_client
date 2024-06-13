@@ -18,6 +18,11 @@ import (
 
 type Loc string
 
+func Locf(str string, v ...any) Loc {
+
+	return Loc(fmt.Sprintf(str, v...))
+}
+
 var Logger = &LoggerStruct{
 
 	comm:  make(chan *ftp_context.LogItem, 100),

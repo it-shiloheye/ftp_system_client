@@ -34,7 +34,7 @@ type ClientConfigStruct struct {
 }
 
 type DirConfig struct {
-	Id            string        `json:"id"`
+	DirId         string        `json:"dir_id"`
 	Path          string        `json:"path"`
 	ExcludeDirs   []string      `json:"exclude_dir"`
 	ExcluedFile   []string      `json:"exclude_file"`
@@ -62,7 +62,7 @@ type SubcribeDir struct {
 
 func BlankDirConfig() DirConfig {
 	return DirConfig{
-		Id:            uuid.New().String(),
+		DirId:         uuid.New().String(),
 		Path:          "",
 		ExcludeDirs:   []string{},
 		ExcluedFile:   []string{},
@@ -101,7 +101,7 @@ func BlankClientConfigStruct() ClientConfigStruct {
 		CommonName: "",
 		// back up instructions of current client
 		DirConfig: DirConfig{
-			Id:            uuid.NewString(),
+			DirId:         uuid.NewString(),
 			Path:          "",
 			ExcludeDirs:   []string{".git", "node_modules", "vendor", "tmp", ".next"},
 			ExcluedFile:   []string{"~"},

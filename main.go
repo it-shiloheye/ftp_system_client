@@ -24,7 +24,7 @@ func main() {
 	}
 	dir_handler.InitialiseFileTree(ClientConfig.DataDir + "/file-tree.json")
 
-	Logger.Logf(loc, "new client started: %s", ClientConfig.Id)
+	Logger.Logf(loc, "new client started: %s", ClientConfig.ClientId)
 	ctx := ftp_context.CreateNewContext()
 	defer ctx.Wait()
 
