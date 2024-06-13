@@ -169,3 +169,9 @@ func (ft *FileTreeJson) RUnlock() {
 	ft.FileMap.RUnlock()
 	ft.lock.RUnlock()
 }
+
+func (ft *FileTreeJson) AddExtension(e string) {
+	ft.Lock()
+	ft.Extensions[e] = true
+	ft.Unlock()
+}

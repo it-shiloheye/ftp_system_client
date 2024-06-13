@@ -92,9 +92,10 @@ func ReadDir(ctx ftp_context.Context, dir_data initialiseclient.DirConfig) (err 
 				FileBasic: file,
 				ModTime:   fmt.Sprint(file.Fs().ModTime()),
 			}
+			fh.FileType = filehandler.Ext(fh.FileBasic)
 			FileTree.FileMap.Set(f_path, fh)
 			FileTree.FileState.Set(f_path, FileStateToHash)
-
+			FileTree.AddExtension(string(fh.FileType))
 			continue
 		}
 

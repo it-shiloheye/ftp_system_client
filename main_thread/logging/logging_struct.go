@@ -113,7 +113,7 @@ func (ls *LoggerStruct) Logf(loc Loc, str string, v ...any) {
 	}
 }
 
-func (ls *LoggerStruct) LogErr(loc Loc, err error) {
+func (ls *LoggerStruct) LogErr(loc Loc, err error) error {
 	e := &ftp_context.LogItem{
 		Location:  string(loc),
 		Time:      time.Now(),
@@ -122,6 +122,7 @@ func (ls *LoggerStruct) LogErr(loc Loc, err error) {
 		CallStack: []error{err},
 	}
 	ls.Log(e)
+	return e
 }
 
 func (ls *LoggerStruct) Engine(ctx ftp_context.Context) {
