@@ -4,8 +4,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
+	"github.com/it-shiloheye/ftp_system_lib/logging"
 )
 
 func make_post_request(client *http.Client, route string, contentType string, body io.Reader) (res *http.Response, out []byte, err ftp_context.LogErr) {

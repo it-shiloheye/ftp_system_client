@@ -4,7 +4,7 @@ go 1.22.2
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/it-shiloheye/ftp_system_lib v0.4.9
+	github.com/it-shiloheye/ftp_system_lib v1.1.9
 )
 
 require github.com/knz/go-libedit v1.10.1 // indirect

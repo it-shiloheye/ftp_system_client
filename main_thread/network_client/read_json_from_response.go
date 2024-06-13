@@ -5,8 +5,8 @@ import (
 
 	"io"
 
-	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
+	"github.com/it-shiloheye/ftp_system_lib/logging"
 )
 
 func read_json_from_response(r io.ReadCloser, tmp any) (out []byte, err ftp_context.LogErr) {

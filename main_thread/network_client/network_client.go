@@ -9,9 +9,9 @@ import (
 	"os"
 
 	initialiseclient "github.com/it-shiloheye/ftp_system_client/init_client"
-	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
 	ftp_base "github.com/it-shiloheye/ftp_system_lib/base"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
+	"github.com/it-shiloheye/ftp_system_lib/logging"
 	ftp_tlshandler "github.com/it-shiloheye/ftp_system_lib/tls_handler/v2"
 )
 

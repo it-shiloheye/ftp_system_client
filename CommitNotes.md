@@ -1,5 +1,24 @@
 # Commit Notes
 
+### 14th June 2024, 01:45 AM GMT+3
+```sh
+1. Removing logging to lib package
+2. To standardise logging both serverside 
+    and client side
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch main
+# Your branch is up to date with 'origin/main'.
+#
+# Changes to be committed:
+#	modified:   go.mod
+#	modified:   init_client/config.go
+#	modified:   main.go
+#	deleted:    main_thread/logging/logging_struct.go
+#
+```
+
 ### 13th June 2024, 10:19 AM GMT+3
 ```sh
 1. Successfully uploads files as file_tree_json 

@@ -10,10 +10,10 @@ import (
 
 	"os"
 
-	"github.com/it-shiloheye/ftp_system_client/main_thread/logging"
 	"github.com/it-shiloheye/ftp_system_lib/base"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 	filehandler "github.com/it-shiloheye/ftp_system_lib/file_handler/v2"
+	"github.com/it-shiloheye/ftp_system_lib/logging"
 )
 
 var ClientConfig = &ClientConfigStruct{}
