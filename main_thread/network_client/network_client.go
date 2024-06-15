@@ -11,7 +11,8 @@ import (
 	initialiseclient "github.com/it-shiloheye/ftp_system_client/init_client"
 	ftp_base "github.com/it-shiloheye/ftp_system_lib/base"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
-	"github.com/it-shiloheye/ftp_system_lib/logging"
+
+	"github.com/it-shiloheye/ftp_system_lib/logging/log_item"
 	ftp_tlshandler "github.com/it-shiloheye/ftp_system_lib/tls_handler/v2"
 )
 
@@ -24,13 +25,6 @@ type Route struct {
 
 func (r *Route) Url() string {
 	return r.BaseUrl + r.Pathname
-}
-
-func MakeGetRequest(client *http.Client, route Route, tmp any) (out []byte, err ftp_context.LogErr) {
-	loc := logging.Loc("MakeGetRequest(client *http.Client, route Route, tmp any) (out []byte, err ftp_context.LogErr)")
-	Logger.Logf(loc, "make get request")
-	_, out, err = make_get_request(client, route.Url(), tmp)
-	return
 }
 
 type CookieJar_ struct {
@@ -79,22 +73,22 @@ func (cj *CookieJar_) SetCookies(url_ *url.URL, cookies []*http.Cookie) {
 	cj.cookies.Set(tmp, c_array2)
 }
 
-func NewNetworkClient(ctx ftp_context.Context) (cl *http.Client, err ftp_context.LogErr) {
-	loc := logging.Loc("NewNetworkClient(ctx ftp_context.Context)(cl *http.Client, err ftp_context.LogErr )")
+func NewNetworkClient(ctx ftp_context.Context) (cl *http.Client, err log_item.LogErr) {
+	loc := log_item.Loc("NewNetworkClient(ctx ftp_context.Context)(cl *http.Client, err log_item.LogErr )")
 	cl = &http.Client{
 		Jar: NewCookieJar(),
 	}
 
 	tmp, err1 := os.ReadFile("./data/certs/ca_certs.json")
 	if err1 != nil {
-		err = ftp_context.NewLogItem(string(loc), true).SetAfterf("tmp, err1 := os.ReadFile(%s)", "./certs/ca_certs.json").SetMessage(err1.Error()).AppendParentError(err1)
+		err = log_item.NewLogItem(loc, log_item.LogLevelError02).SetAfterf("tmp, err1 := os.ReadFile(%s)", "./certs/ca_certs.json").SetMessage(err1.Error()).AppendParentError(err1)
 		return
 	}
 
 	ca := ftp_tlshandler.CAPem{}
 	err2 := json.Unmarshal(tmp, &ca)
 	if err2 != nil {
-		err = ftp_context.NewLogItem(string(loc), true).SetAfterf("err2 := json.Unmarshal(tmp,&ca)").SetMessage(err2.Error()).AppendParentError(err2)
+		err = log_item.NewLogItem(loc, log_item.LogLevelError02).SetAfterf("err2 := json.Unmarshal(tmp,&ca)").SetMessage(err2.Error()).AppendParentError(err2)
 		return
 	}
 

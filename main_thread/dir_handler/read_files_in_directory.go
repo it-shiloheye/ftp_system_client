@@ -17,6 +17,7 @@ import (
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 	filehandler "github.com/it-shiloheye/ftp_system_lib/file_handler/v2"
 	"github.com/it-shiloheye/ftp_system_lib/logging"
+	"github.com/it-shiloheye/ftp_system_lib/logging/log_item"
 	// filehandler "github.com/it-shiloheye/ftp_system_lib/file_handler/v2"
 )
 
@@ -29,7 +30,7 @@ type ReadDirResult struct {
 	ToUpload  []string
 }
 
-func ticker(loc logging.Loc, i int) {
+func ticker(loc log_item.Loc, i int) {
 
 	// Logger.Logf(loc, "%d", i)
 }
@@ -56,8 +57,14 @@ func GetExcludeList(excluded ...[]string) (tmp []string) {
 
 	return
 }
-func ReadDir(ctx ftp_context.Context, dir_data initialiseclient.DirConfig) (err ftp_context.LogErr) {
-	loc := logging.Loc("ReadDir(ctx ftp_context.Context, dir_data initialiseclient.DirConfig) (err ftp_context.LogErr)")
+
+type TempFileData struct {
+	path string
+	fs   fs.DirEntry
+}
+
+func ReadDir(ctx ftp_context.Context, dir_data initialiseclient.DirConfig) (err error) {
+	loc := log_item.Loc("ReadDir(ctx ftp_context.Context, dir_data initialiseclient.DirConfig) (err log_item.LogErr)")
 	defer ctx.Finished()
 	ticker(loc, 1)
 
@@ -65,32 +72,65 @@ func ReadDir(ctx ftp_context.Context, dir_data initialiseclient.DirConfig) (err 
 	dirs_excluded_dirs_list := GetExcludeList(dir_data.ExcludeDirs, dir_data.ExcludeRegex, dir_data.ExcluedFile)
 
 	ticker(loc, 3)
-	var files_list []*filehandler.FileBasic
 
-	var err1 error
-	files_list, err1 = list_file_tree(dir_data.Path, dirs_excluded_dirs_list)
+	var out []TempFileData
+
+	err1 := filepath.WalkDir(dir_data.Path, func(path string, fs_d fs.DirEntry, err2 error) error {
+		loc := log_item.Locf(`filepath.WalkDir("%s", func("%s", _ fs.DirEntry, err2 error) error `, dir_data.Path, path)
+
+		if err2 != nil {
+
+			return Logger.LogErr(loc, err2)
+		}
+
+		for _, excluded := range dirs_excluded_dirs_list {
+			if not_ok, _ := regexp.MatchString(excluded, path); strings.Contains(path, excluded) || not_ok {
+				if fs_d.IsDir() {
+					return fs.SkipDir
+				}
+				return nil
+			}
+
+		}
+
+		if fs_d.IsDir() {
+			return nil
+		}
+		out = append(out, TempFileData{
+			path: path,
+			fs:   fs_d,
+		})
+
+		return nil
+	})
+
 	if err1 != nil {
 
-		tmp_err := &ftp_context.LogItem{Location: string(loc), Time: time.Now(),
-			After:   `files_list, err1 = list_file_tree(dir_data.Path, dirs_excluded_dirs_list)`,
-			Message: "didn't successfully read dir",
-			Err:     true, CallStack: []error{err1},
-		}
-		Logger.LogErr(loc, tmp_err)
-		return tmp_err
+		return Logger.LogErr(loc, err1)
+
 	}
-	ticker(loc, 4)
-	for _, file := range files_list {
-		f_path := file.Path
-		Logger.Logf(loc, f_path)
-		if file.IsDir() {
+
+	FS := os.DirFS(dir_data.Path)
+
+	for _, file := range out {
+		f_path := file.path
+		if file.fs.IsDir() {
 			continue
 		}
+		fs_, err3 := fs.Stat(FS, file.fs.Name())
+
 		fh_old, exists_filemap := FileTree.FileMap.Get(f_path)
 		if !exists_filemap {
+			if err3 != nil {
+				Logger.LogErr(loc, err3)
+				continue
+			}
+
 			fh := &filehandler.FileHash{
-				FileBasic: file,
-				ModTime:   fmt.Sprint(file.Fs().ModTime()),
+				FileBasic: &filehandler.FileBasic{
+					Path: f_path,
+				},
+				ModTime: fmt.Sprint(fs_.ModTime()),
 			}
 			fh.FileType = filehandler.Ext(fh.FileBasic)
 			FileTree.FileMap.Set(f_path, fh)
@@ -99,7 +139,7 @@ func ReadDir(ctx ftp_context.Context, dir_data initialiseclient.DirConfig) (err 
 			continue
 		}
 
-		if fh_old.ModTime != fmt.Sprint(file.Fs().ModTime()) {
+		if fh_old.ModTime != fmt.Sprint(fs_.ModTime()) {
 			FileTree.FileState.Set(f_path, FileStateToHash)
 
 		}
@@ -134,60 +174,6 @@ func NilError(err error) bool {
 }
 
 func list_file_tree(dir_path string, exclude_paths []string) (out []*filehandler.FileBasic, err error) {
-	loc := logging.Loc("list_file_tree(dir_path string, exclude_paths []string) (out []*filehandler.FileBasic, err error) ")
-	err1 := filepath.WalkDir(dir_path, func(path string, fs_d fs.DirEntry, err2 error) error {
-		after := fmt.Sprintf(`filepath.WalkDir("%s", func("%s", _ fs.DirEntry, err2 error) error `, dir_path, path)
-		// ticker(loc, 1)
-		if err2 != nil {
-
-			return &ftp_context.LogItem{
-				Location: string(loc),
-				Time:     time.Now(),
-				After:    after,
-
-				Message: err2.Error(),
-				Err:     true, CallStack: []error{err2},
-			}
-		}
-		// ticker(loc, 2)
-
-		if fs_d.IsDir() {
-			return nil
-		}
-
-		for _, excluded := range exclude_paths {
-			if not_ok, _ := regexp.MatchString(excluded, path); strings.Contains(path, excluded) || not_ok {
-
-				return nil
-			}
-
-		}
-		// ticker(loc, 3)
-		tmp, err3 := filehandler.Open(path)
-		if NilError(err3) {
-
-			tmp_Err := &ftp_context.LogItem{
-				Location: string(loc),
-				Time:     time.Now(),
-				After:    fmt.Sprintf(`tmp, err3 := filehandler.Open("%s")`, path),
-				Message:  err3.Error(),
-
-				Err: true, CallStack: []error{err3},
-			}
-			Logger.LogErr(loc, tmp_Err)
-			return tmp_Err
-		}
-
-		// Logger.Logf(loc, "appended: %s", path)
-		out = append(out, tmp)
-		ticker(loc, 4)
-		return nil
-	})
-
-	ticker(loc, 15)
-	if NilError(err1) {
-		return out, err1
-	}
 
 	return
 }

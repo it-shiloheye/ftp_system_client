@@ -10,7 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
+
 	"os"
 
 	// "strings"
@@ -25,25 +25,24 @@ import (
 	dir_handler "github.com/it-shiloheye/ftp_system_client/main_thread/dir_handler"
 	netclient "github.com/it-shiloheye/ftp_system_client/main_thread/network_client"
 	"github.com/it-shiloheye/ftp_system_lib/logging"
+	"github.com/it-shiloheye/ftp_system_lib/logging/log_item"
 
 	ftp_base "github.com/it-shiloheye/ftp_system_lib/base"
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 	filehandler "github.com/it-shiloheye/ftp_system_lib/file_handler/v2"
-	// filehandler "github.com/it-shiloheye/ftp_system_lib/file_handler/v2"
-	// filehandler "github.com/it-shiloheye/ftp_system_lib/file_handler/v2"
 )
 
 var ClientConfig = initialiseclient.ClientConfig
 var Logger = logging.Logger
 var FileTree = dir_handler.FileTree
 
-func ticker(loc logging.Loc, i int) {
+func ticker(loc log_item.Loc, i int) {
 
 	// Logger.Logf(loc, "%d", i)
 }
 
 func MainThread(ctx ftp_context.Context) context.Context {
-	loc := logging.Loc("MainThread(ctx ftp_context.Context) context.Context ")
+	loc := log_item.Loc("MainThread(ctx ftp_context.Context) context.Context ")
 
 	ticker(loc, 1)
 	defer ctx.Wait()
@@ -69,29 +68,20 @@ func MainThread(ctx ftp_context.Context) context.Context {
 		log.Fatalln(err_)
 	}
 	base_server := "https://127.0.0.1:8080"
-	tyc := &TestServerConnection{
-		tmp: map[string]string{},
-		tc:  time.NewTicker(time.Second * 5),
-	}
-	base_url, err2 := url.Parse(base_server)
-	if err2 != nil {
-		log.Println(err2)
-	}
+
 	if len(ClientConfig.ClientId) < 1 {
 		ClientConfig.ClientId = uuid.NewString()
 	}
 
-	client_id_cookie := &http.Cookie{
+	net_engine, err1 := test_server_connection(client, base_server)
+	if err1 != nil {
+		log.Fatalln(err1)
+	}
+	net_engine.SetCookie("/", &http.Cookie{
 		Name:   "client-id",
 		MaxAge: 0,
 		Value:  ClientConfig.ClientId,
-	}
-	log.Println(client_id_cookie)
-
-	client.Jar.SetCookies(base_url, []*http.Cookie{
-		client_id_cookie,
 	})
-	test_server_connection(client, base_server, tyc)
 
 	go dir_handler.UpdateFileTree(ctx.Add(), ClientConfig.DataDir+"/file-tree.lock", ClientConfig.DataDir+"/file-tree.json")
 
@@ -165,39 +155,22 @@ func MainThread(ctx ftp_context.Context) context.Context {
 	return ctx
 }
 
-type TestServerConnection struct {
-	tmp   map[string]string
-	tc    *time.Ticker
-	count int
-}
-
-func test_server_connection(client *http.Client, host string, tsc *TestServerConnection) {
-	loc := logging.Loc(" test_server_connection(client *http.Client, host string, tsc *TestServerConnection)")
-	Logger.Logf(loc, "test_server_connection")
-	rc := netclient.Route{
-		BaseUrl:  host,
-		Pathname: "/ping",
-	}
-	_, err1 := netclient.MakeGetRequest(client, rc, &tsc.tmp)
+func test_server_connection(client *http.Client, host string) (ne *netclient.NetworkEngine, err error) {
+	loc := log_item.Locf(`test_server_connection(client *http.Client, host: "%s") (ne *netclient.NetworkEngine, err error)`, host)
+	Logger.Logf(loc, "pinging server")
+	ne = netclient.NewNetworkEngine(client, host)
+	err1 := ne.Ping("/ping", 5)
 	if err1 != nil {
-		Logger.Logf(loc, "error here")
-		tsc.count += 1
-		if tsc.count < 5 {
-			Logger.LogErr(loc, err1)
-
-		} else {
-			Logger.LogErr(loc, err1)
-			os.Exit(1)
-		}
-		<-tsc.tc.C
-		test_server_connection(client, host, tsc)
+		err = Logger.LogErr(loc, err1)
+		return
 	}
 
 	Logger.Logf(loc, "server connected successfully: %s", host)
+	return
 }
 
 func HashingFunction(ctx ftp_context.Context, bs *filehandler.BytesStore, file_p string) error {
-	loc := logging.Loc("HashingFunction(bs *filehandler.BytesStore, file_p string) ")
+	loc := log_item.Loc("HashingFunction(bs *filehandler.BytesStore, file_p string) ")
 	var err1, err2, err3 error
 	fh, _ := FileTree.FileMap.Get(file_p)
 	Logger.Logf(loc, "to hash: %s\nModTime: %s", file_p, fh.ModTime)
@@ -208,8 +181,8 @@ func HashingFunction(ctx ftp_context.Context, bs *filehandler.BytesStore, file_p
 		fh.File, err1 = ftp_base.OpenFile(file_p, os.O_RDONLY)
 		if err1 != nil {
 
-			return Logger.LogErr(loc, &ftp_context.LogItem{
-				Location:  string(loc),
+			return Logger.LogErr(loc, &log_item.LogItem{
+				Location:  loc,
 				After:     fmt.Sprintf(`fh.File, err1 = ftp_base.OpenFile("%s",os.O_RDONLY)`, file_p),
 				Message:   err1.Error(),
 				CallStack: []error{err1},
@@ -220,8 +193,8 @@ func HashingFunction(ctx ftp_context.Context, bs *filehandler.BytesStore, file_p
 	fh.Size, err2 = bs.ReadFrom(fh.File)
 	if err2 != nil {
 
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
+		return Logger.LogErr(loc, &log_item.LogItem{
+			Location:  loc,
 			After:     `_, err1 = bs.ReadFrom(fh.File)`,
 			Message:   err2.Error(),
 			CallStack: []error{err2},
@@ -230,8 +203,8 @@ func HashingFunction(ctx ftp_context.Context, bs *filehandler.BytesStore, file_p
 
 	fh.Hash, err3 = bs.Hash()
 	if err3 != nil {
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
+		return Logger.LogErr(loc, &log_item.LogItem{
+			Location:  loc,
 			After:     `fh.Hash, err2 = bs.Hash()`,
 			Message:   err3.Error(),
 			CallStack: []error{err3},
@@ -245,7 +218,7 @@ func HashingFunction(ctx ftp_context.Context, bs *filehandler.BytesStore, file_p
 }
 
 func UploadingFunction(ctx ftp_context.Context, client *http.Client, buf *bytes.Buffer, file_p string) error {
-	loc := logging.Loc(`UploadingFunction(client *http.Client, file_p string)`)
+	loc := log_item.Loc(`UploadingFunction(client *http.Client, file_p string)`)
 
 	client_id := ClientConfig.ClientId
 	dir_id := ClientConfig.DirConfig.DirId
@@ -261,12 +234,7 @@ func UploadingFunction(ctx ftp_context.Context, client *http.Client, buf *bytes.
 	data, err1 := json.Marshal(fh)
 	if err1 != nil {
 
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
-			After:     `data, err1 := json.Marshal(fh)`,
-			Message:   err1.Error(),
-			CallStack: []error{err1},
-		})
+		return Logger.LogErr(loc, err1)
 	}
 
 	buf.Reset()
@@ -274,23 +242,13 @@ func UploadingFunction(ctx ftp_context.Context, client *http.Client, buf *bytes.
 	_, err2 := buf.Write(data)
 	if err2 != nil {
 
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
-			After:     `_, err2 := buf.Write(data)`,
-			Message:   err2.Error(),
-			CallStack: []error{err2},
-		})
+		return Logger.LogErr(loc, err2)
 	}
 
 	res, err3 := client.Post(route, "application/json", buf)
 	if err3 != nil {
 
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
-			After:     fmt.Sprintf(`res, err3 := client.Post(%s,"application/json",buf)`, route),
-			Message:   err3.Error(),
-			CallStack: []error{err3},
-		})
+		return Logger.LogErr(loc, err3)
 	}
 
 	buf.Reset()
@@ -302,32 +260,24 @@ func UploadingFunction(ctx ftp_context.Context, client *http.Client, buf *bytes.
 	err4 := json.Unmarshal(resp, &ts)
 	if err4 != nil {
 
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
-			After:     `err4 := json.Unmarshal(resp, &ts)`,
-			Message:   err4.Error(),
-			CallStack: []error{err4},
-		})
+		return Logger.LogErr(loc, err4)
 	}
 
 	received, ok := ts["received"]
 	if !ok {
 
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location: string(loc),
-			Err:      true,
-			After:    `received, ok := ts["received"]`,
-			Message:  `didn't receive a hash from server`,
+		return Logger.LogErr(loc, &log_item.LogItem{
+			Level:   log_item.LogLevelError02,
+			After:   `received, ok := ts["received"]`,
+			Message: `didn't receive a hash from server`,
 		})
 	}
 
 	if fh.Hash != received {
 
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location: string(loc),
-			Err:      true,
-			After:    `fh.Hash != received`,
-			Message:  fmt.Sprintf(`received the wrong hash from server:\nfile: %s\nsent: %s\n received: %s`, fh.Path, fh.Hash, received),
+		return Logger.LogErr(loc, &log_item.LogItem{
+			After:   `fh.Hash != received`,
+			Message: fmt.Sprintf(`received the wrong hash from server:\nfile: %s\nsent: %s\n received: %s`, fh.Path, fh.Hash, received),
 		})
 	}
 
@@ -336,12 +286,7 @@ func UploadingFunction(ctx ftp_context.Context, client *http.Client, buf *bytes.
 	data, err4 = os.ReadFile(file_p)
 	if err4 != nil {
 
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
-			After:     fmt.Sprintf(`data, err4 = os.ReadFile(file_p:"%s")`, fh.Path),
-			Message:   err4.Error(),
-			CallStack: []error{err4},
-		})
+		return Logger.LogErr(loc, err4)
 	}
 
 	tmp_2 := map[string]any{
@@ -349,68 +294,33 @@ func UploadingFunction(ctx ftp_context.Context, client *http.Client, buf *bytes.
 		"data": base64.StdEncoding.EncodeToString(data),
 	}
 
-	data, err6 := json.Marshal(tmp_2)
-	if err6 != nil {
-
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
-			After:     `data, err6 := json.Marshal(tmp_2)`,
-			Message:   err6.Error(),
-			CallStack: []error{err6},
-		})
-	}
-
 	buf.Reset()
-	buf.Write(data)
+	err6 := json.NewEncoder(buf).Encode(&tmp_2)
+	if err6 != nil {
+		return Logger.LogErr(loc, err6)
+	}
 
 	for i := 0; ; i++ {
 		res, err7 = client.Post(route, "application/json", buf)
 		if err7 != nil {
 			if errors.Is(err7, net.ErrClosed) {
 				if i >= 5 {
-					return Logger.LogErr(loc, &ftp_context.LogItem{
-						Location:  string(loc),
-						After:     fmt.Sprintf(`res, err7 := client.Post(route: "%s", "application/json", buf)`, route),
-						Message:   err7.Error(),
-						CallStack: []error{err7},
-					})
+					return Logger.LogErr(loc, err7)
 				}
 				<-time.After(time.Second)
 				continue
 			}
-			return Logger.LogErr(loc, &ftp_context.LogItem{
-				Location:  string(loc),
-				After:     fmt.Sprintf(`res, err7 := client.Post(route: "%s", "application/json", buf)`, route),
-				Message:   err7.Error(),
-				CallStack: []error{err7},
-			})
+			return Logger.LogErr(loc, err7)
 		}
 		break
 	}
-	data, err8 := io.ReadAll(res.Body)
-	if err8 != nil {
+	clear(tmp_2)
 
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
-			After:     `data, err8 := io.ReadAll(res.Body)`,
-			Message:   err8.Error(),
-			CallStack: []error{err8},
-		})
+	err8 := json.NewDecoder(res.Body).Decode(&tmp_2)
+	if err8 != nil {
+		return Logger.LogErr(loc, err8)
 	}
 	res.Body.Close()
-
-	err9 := json.Unmarshal(data, &tmp_2)
-	if err9 != nil {
-
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
-			After:     `err9 := json.Unmarshal(data, &tmp_2)`,
-			Message:   err9.Error(),
-			CallStack: []error{err9},
-		})
-	}
-
-	// log.Println(string(data))
 
 	if state, ok := tmp_2["state"]; ok {
 		if s_state, ok := state.(string); ok && s_state == "success" {
@@ -421,7 +331,7 @@ func UploadingFunction(ctx ftp_context.Context, client *http.Client, buf *bytes.
 
 	}
 
-	return Logger.LogErr(loc, ftp_context.NewLogItem(string(loc), true).SetMessagef("failed uploading: %s\nat: %s\response:\t%s", file_p, fmt.Sprint(time.Now()), string(resp)))
+	return Logger.LogErr(loc, log_item.NewLogItem(loc, log_item.LogLevelError02).SetMessagef("failed uploading: %s\nat: %s\response:\t%s", file_p, fmt.Sprint(time.Now()), string(resp)))
 }
 
 func DownloadingFunction(client *http.Client, file_p string) error {
@@ -430,7 +340,7 @@ func DownloadingFunction(client *http.Client, file_p string) error {
 }
 
 func ConfirmFunction(client *http.Client, file_p string) error {
-	loc := logging.Locf(`ConfirmFunction(client *http.Client, file_hash:"%s") error`, file_p)
+	loc := log_item.Locf(`ConfirmFunction(client *http.Client, file_hash:"%s") error`, file_p)
 
 	fh, ok := FileTree.FileMap.Get(file_p)
 	if !ok {
@@ -445,8 +355,8 @@ func ConfirmFunction(client *http.Client, file_p string) error {
 	res, err1 := client.Get(route)
 	if err1 != nil {
 
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
+		return Logger.LogErr(loc, &log_item.LogItem{
+			Location:  loc,
 			Time:      time.Now(),
 			After:     fmt.Sprintf(`res, err1 := client.Get(route: %s)`, route),
 			Message:   err1.Error(),
@@ -459,9 +369,9 @@ func ConfirmFunction(client *http.Client, file_p string) error {
 	d, err2 := io.ReadAll(res.Request.Body)
 	res.Request.Body.Close()
 	if err2 != nil {
-		return Logger.LogErr(loc, &ftp_context.LogItem{
+		return Logger.LogErr(loc, &log_item.LogItem{
 			Time:      time.Now(),
-			Location:  string(loc),
+			Location:  loc,
 			After:     `d, err2 := io.ReadAll(res.Request.Body)`,
 			Message:   err2.Error(),
 			CallStack: []error{err2},
@@ -469,9 +379,9 @@ func ConfirmFunction(client *http.Client, file_p string) error {
 	}
 	err3 := json.Unmarshal(d, &tmp)
 	if err3 != nil {
-		return Logger.LogErr(loc, &ftp_context.LogItem{
+		return Logger.LogErr(loc, &log_item.LogItem{
 			Time:      time.Now(),
-			Location:  string(loc),
+			Location:  loc,
 			After:     `err3 := json.Unmarshal(d,&tmp)`,
 			Message:   err3.Error(),
 			CallStack: []error{err3},
@@ -480,8 +390,8 @@ func ConfirmFunction(client *http.Client, file_p string) error {
 
 	state, ok := tmp["state"]
 	if !ok {
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
+		return Logger.LogErr(loc, &log_item.LogItem{
+			Location:  loc,
 			Time:      time.Now(),
 			After:     `state, ok := tmp["state"]`,
 			Message:   fmt.Sprintf("server response is invalid:\n%s", string(d)),
@@ -495,8 +405,8 @@ func ConfirmFunction(client *http.Client, file_p string) error {
 	case "uploaded":
 		return nil
 	default:
-		return Logger.LogErr(loc, &ftp_context.LogItem{
-			Location:  string(loc),
+		return Logger.LogErr(loc, &log_item.LogItem{
+			Location:  loc,
 			Time:      time.Now(),
 			After:     `state, ok := tmp["state"]`,
 			Message:   fmt.Sprintf("server response is invalid:\n%s", string(d)),

@@ -14,6 +14,7 @@ import (
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 	filehandler "github.com/it-shiloheye/ftp_system_lib/file_handler/v2"
 	"github.com/it-shiloheye/ftp_system_lib/logging"
+	"github.com/it-shiloheye/ftp_system_lib/logging/log_item"
 )
 
 var ClientConfig = &ClientConfigStruct{}
@@ -52,7 +53,7 @@ func init() {
 }
 
 func UpdateClientConfig(lock_file_p string, ctx ftp_context.Context) {
-	loc := logging.Loc("UpdateConfig(ctx ftp_context.Context)")
+	loc := log_item.Loc("UpdateConfig(ctx ftp_context.Context)")
 	defer ctx.Finished()
 	tc := time.NewTicker(time.Minute)
 	for ok := true; ok; {
@@ -99,8 +100,8 @@ func InitialiseClientConfig() {
 	log.Println("successfull loaded config")
 }
 
-func WriteClientConfig(lock_file_p string, i ...int) (err ftp_context.LogErr) {
-	loc := "WriteConfig() (err ftp_context.LogErr)"
+func WriteClientConfig(lock_file_p string, i ...int) (err log_item.LogErr) {
+	loc := log_item.Loc("WriteConfig() (err log_item.LogErr)")
 
 	log.Println(lock_file_p)
 	l, err3 := filehandler.Lock(lock_file_p)
@@ -115,10 +116,10 @@ func WriteClientConfig(lock_file_p string, i ...int) (err ftp_context.LogErr) {
 			log.Println("try ", i_i, "to write config")
 			return
 		}
-		err = &ftp_context.LogItem{
+		err = &log_item.LogItem{
 			Location: loc,
 			Time:     time.Now(),
-			Err:      true,
+			Level:    log_item.LogLevelError02,
 			After:    fmt.Sprintf(`l, err3  := filehandler.Lock(%s)`, lock_file_p),
 			Message:  "not able to obtain lock",
 		}
@@ -128,8 +129,8 @@ func WriteClientConfig(lock_file_p string, i ...int) (err ftp_context.LogErr) {
 
 	tmp, err1 := json.MarshalIndent(ClientConfig, " ", "\t")
 	if err1 != nil {
-		return &ftp_context.LogItem{Location: loc, Time: time.Now(),
-			Err:       true,
+		return &log_item.LogItem{Location: loc, Time: time.Now(),
+			Level:     log_item.LogLevelError02,
 			After:     `tmp, err1 := json.MarshalIndent(ClientConfig, " ", "\t")`,
 			Message:   err1.Error(),
 			CallStack: []error{err1},
@@ -137,8 +138,8 @@ func WriteClientConfig(lock_file_p string, i ...int) (err ftp_context.LogErr) {
 	}
 	err2 := os.WriteFile("./config.json", tmp, fs.FileMode(base.S_IRWXU|base.S_IRWXO))
 	if err2 != nil {
-		return &ftp_context.LogItem{Location: loc, Time: time.Now(),
-			Err:       true,
+		return &log_item.LogItem{Location: loc, Time: time.Now(),
+			Level:     log_item.LogLevelError02,
 			After:     `err2 := os.WriteFile("./config.json", tmp, fs.FileMode(base.S_IRWXU|base.S_IRWXO))`,
 			Message:   err2.Error(),
 			CallStack: []error{err2},

@@ -7,6 +7,7 @@ import (
 	mainthread "github.com/it-shiloheye/ftp_system_client/main_thread"
 	"github.com/it-shiloheye/ftp_system_client/main_thread/dir_handler"
 	"github.com/it-shiloheye/ftp_system_lib/logging"
+	"github.com/it-shiloheye/ftp_system_lib/logging/log_item"
 
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 )
@@ -23,7 +24,7 @@ func init() {
 
 func main() {
 	initialiseclient.InitialiseClientConfig()
-	loc := logging.Loc("main")
+	loc := log_item.Loc("main")
 	if ClientConfig == nil {
 		log.Fatalln("no client config")
 	}

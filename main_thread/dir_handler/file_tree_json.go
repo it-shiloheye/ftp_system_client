@@ -11,7 +11,7 @@ import (
 	"os"
 
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
-	"github.com/it-shiloheye/ftp_system_lib/logging"
+	"github.com/it-shiloheye/ftp_system_lib/logging/log_item"
 
 	ftp_base "github.com/it-shiloheye/ftp_system_lib/base"
 	filehandler "github.com/it-shiloheye/ftp_system_lib/file_handler/v2"
@@ -91,8 +91,8 @@ func NewFileTreeJson() *FileTreeJson {
 	}
 }
 
-func WriteFileTree(ctx ftp_context.Context, lock_file_p string, file_tree_path string) (err ftp_context.LogErr) {
-	loc := logging.Loc("WriteFileTree() (err ftp_context.LogErr)")
+func WriteFileTree(ctx ftp_context.Context, lock_file_p string, file_tree_path string) (err error) {
+	loc := log_item.Loc("WriteFileTree() (err log_item.LogErr)")
 	FileTree.RLock()
 	defer FileTree.RUnlock()
 	l, err1 := filehandler.Lock(lock_file_p)
@@ -105,28 +105,18 @@ func WriteFileTree(ctx ftp_context.Context, lock_file_p string, file_tree_path s
 
 	tmp, err1 := json.MarshalIndent(FileTree, " ", "\t")
 	if err1 != nil {
-		return &ftp_context.LogItem{Location: string(loc), Time: time.Now(),
-			Err:       true,
-			After:     `tmp, err1 := json.MarshalIndent(FileTree, " ", "\t")`,
-			Message:   err1.Error(),
-			CallStack: []error{err1},
-		}
+		return Logger.LogErr(loc, err1)
 	}
 	err2 := os.WriteFile(file_tree_path, tmp, fs.FileMode(ftp_base.S_IRWXU|ftp_base.S_IRWXO))
 	if err2 != nil {
-		return &ftp_context.LogItem{Location: string(loc), Time: time.Now(),
-			Err:       true,
-			After:     `err2 := os.WriteFile(file_tree_path, tmp, fs.FileMode(ftp_base.S_IRWXU|ftp_base.S_IRWXO))`,
-			Message:   err2.Error(),
-			CallStack: []error{err2},
-		}
+		return Logger.LogErr(loc, err2)
 	}
 
 	return
 }
 
 func UpdateFileTree(ctx ftp_context.Context, lock_file_p string, file_tree_path string) {
-	loc := logging.Loc("UpdateFileTree(ctx ftp_context.Context)")
+	loc := log_item.Loc("UpdateFileTree(ctx ftp_context.Context)")
 
 	defer ctx.Finished()
 	tc := time.NewTicker(time.Minute)
