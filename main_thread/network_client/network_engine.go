@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"sync"
 	"time"
 
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 
 	ftp_base "github.com/it-shiloheye/ftp_system_lib/base"
@@ -29,26 +31,31 @@ func (ne *NetworkEngine) BaseUrl() string {
 	return ne.base_url
 }
 
-func (ne *NetworkEngine) Ping(ping_url string, tries int, v ...map[string]any) error {
-	loc := log_item.Locf(`func (ne *NetworkEngine) Ping(ping_url: "%s", tries int, v ...map[string]any) error`, ne.base_url+ping_url)
-	var tmp map[string]any
+func (ne *NetworkEngine) Ping(ping_url string, tries int, v ...*map[string]any) error {
+	loc := log_item.Locf(`func (ne *NetworkEngine) Ping(ping_url: "%s", tries: %02d, v ...map[string]any) error`, ne.base_url+ping_url, tries)
+	var tmp *map[string]any
 
 	if len(v) > 0 {
 		tmp = v[0]
 	} else {
-		tmp = map[string]any{}
+		tmp = &map[string]any{}
 	}
 
-	err := ne.GetJson(ping_url, &tmp)
+	logging.Logger.Logf(loc, "attempt: %03d", tries)
+	err := ne.GetJson(ping_url, tmp)
 	if err != nil && tries > 0 {
-		<-time.After(time.Second)
-		return ne.Ping(ping_url, tries, tmp)
+		<-time.After(time.Second * 5)
+		return ne.Ping(ping_url, tries-1, tmp)
 	}
 
-	return Logging.LogErr(loc, err)
+	return nil
 }
 
 func NewNetworkEngine(client *http.Client, base_url string) *NetworkEngine {
+	if client.Jar == nil {
+		client.Jar, _ = cookiejar.New(&cookiejar.Options{})
+	}
+
 	return &NetworkEngine{
 		Client:   client,
 		base_url: base_url,
@@ -60,7 +67,7 @@ func NewNetworkEngine(client *http.Client, base_url string) *NetworkEngine {
 }
 
 func (ne *NetworkEngine) PostBytes(route string, data []byte, out_json_item any) (err error) {
-	loc := log_item.Locf(`func (ne *NetworkEngine) PostJson(route: "%s", in_json_item any, out_json_item any) (out []byte, err log_item.LogErr)`, route)
+
 	ne.Lock()
 	defer ne.Unlock()
 	var err1, err2 error
@@ -76,16 +83,15 @@ func (ne *NetworkEngine) PostBytes(route string, data []byte, out_json_item any)
 	var res *http.Response
 	res, err1 = ne.Client.Post(route, "application/octet-stream", send_b)
 	if err1 != nil {
-		return logging.Logger.LogErr(loc, err1)
-
+		return err1
 	}
 	defer res.Body.Close()
-
+	ne.SetCookie(route, res.Cookies()...)
 	ne.Map.Set(route, res)
 
 	err2 = json.NewDecoder(res.Body).Decode(out_json_item)
 	if err2 != nil {
-		return logging.Logger.LogErr(loc, err2)
+		return err2
 	}
 
 	return
@@ -113,10 +119,11 @@ func (ne *NetworkEngine) PostJson(route string, in_json_item any, out_json_item 
 		return logging.Logger.LogErr(loc, err2)
 
 	}
-	defer res.Body.Close()
+	ne.SetCookie(route, res.Cookies()...)
 
 	err3 = json.NewDecoder(res.Body).Decode(out_json_item)
 	if err3 != nil {
+		log.Println(res)
 		return logging.Logger.LogErr(loc, err3)
 	}
 
@@ -139,7 +146,7 @@ func (ne *NetworkEngine) GetJson(route string, out_json_item any) (err error) {
 
 	}
 	defer res.Body.Close()
-
+	ne.SetCookie(route, res.Cookies()...)
 	err2 = json.NewDecoder(res.Body).Decode(out_json_item)
 	if err2 != nil {
 		return logging.Logger.LogErr(loc, err2)
@@ -148,12 +155,33 @@ func (ne *NetworkEngine) GetJson(route string, out_json_item any) (err error) {
 	return
 }
 
-func (ne *NetworkEngine) SetCookie(route string, cookie *http.Cookie) error {
+func (ne *NetworkEngine) GetCookie(route string, cookie_name string) (cookie *http.Cookie, err error) {
+	route = ne.base_url + route
+
+	url_, err1 := url.ParseRequestURI(route)
+	if err1 != nil {
+		return nil, err1
+	}
+
+	rl_cookies := ne.Client.Jar.Cookies(url_)
+
+	for _, ck := range rl_cookies {
+		if ck.Name == cookie_name {
+			return ck, nil
+		}
+	}
+
+	return nil, &log_item.LogItem{
+		Time:    time.Now(),
+		Message: "missing cookie",
+	}
+}
+
+func (ne *NetworkEngine) SetCookie(route string, cookies ...*http.Cookie) error {
 	route = ne.base_url + route
 	loc := log_item.Locf(`func (ne *NetworkEngine) SetCookie(route: "%s", cookie *http.Cookie) error`, route)
-	if ne.Client.Jar == nil {
-		ne.Client.Jar = NewCookieJar()
-	}
+
+	uniq := map[string]*http.Cookie{}
 
 	url_, err1 := url.Parse(route)
 	if err1 != nil {
@@ -161,17 +189,15 @@ func (ne *NetworkEngine) SetCookie(route string, cookie *http.Cookie) error {
 	}
 	rl_cookies := ne.Client.Jar.Cookies(url_)
 
-	if len(rl_cookies) < 0 {
-		ne.Client.Jar.SetCookies(url_, []*http.Cookie{cookie})
-		return nil
-	}
-	uniq := map[string]*http.Cookie{}
-
 	for _, ck := range rl_cookies {
 		uniq[ck.Name] = ck
 	}
 
-	uniq[cookie.Name] = cookie
+	for _, cookie := range cookies {
+
+		cookie.Path = route
+		uniq[cookie.Name] = cookie
+	}
 
 	total_ := []*http.Cookie{}
 	for _, ck := range uniq {
@@ -181,4 +207,14 @@ func (ne *NetworkEngine) SetCookie(route string, cookie *http.Cookie) error {
 	ne.Client.Jar.SetCookies(url_, total_)
 
 	return nil
+}
+
+func (ne *NetworkEngine) GetCookies(route string) (cookies []*http.Cookie, err error) {
+
+	url_, err1 := url.Parse(ne.base_url + route)
+	if err1 != nil {
+		return nil, err1
+	}
+	cookies = ne.Client.Jar.Cookies(url_)
+	return
 }

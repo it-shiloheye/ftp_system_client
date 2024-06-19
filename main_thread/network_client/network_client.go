@@ -2,14 +2,14 @@ package netclient
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"net/http"
-	"net/url"
+	"net/http/cookiejar"
+
 	"os"
 
 	initialiseclient "github.com/it-shiloheye/ftp_system_client/init_client"
-	ftp_base "github.com/it-shiloheye/ftp_system_lib/base"
+
 	ftp_context "github.com/it-shiloheye/ftp_system_lib/context"
 
 	"github.com/it-shiloheye/ftp_system_lib/logging/log_item"
@@ -27,56 +27,15 @@ func (r *Route) Url() string {
 	return r.BaseUrl + r.Pathname
 }
 
-type CookieJar_ struct {
-	cookies ftp_base.MutexedMap[[]*http.Cookie]
-}
-
-func NewCookieJar() *CookieJar_ {
-	return &CookieJar_{
-		cookies: ftp_base.NewMutexedMap[[]*http.Cookie](),
-	}
-}
-
-func (cj *CookieJar_) Cookies(u *url.URL) []*http.Cookie {
-	tmp := fmt.Sprint(u)
-
-	cookies, ok := cj.cookies.Get(tmp)
-	if !ok {
-		return nil
-	}
-	return cookies
-}
-func (cj *CookieJar_) SetCookies(url_ *url.URL, cookies []*http.Cookie) {
-	tmp := fmt.Sprint(url_)
-	uniq_c := map[string]bool{}
-
-	c_array, ok := cj.cookies.Get(tmp)
-	if !ok {
-		c_array1 := []*http.Cookie{}
-		for _, c := range cookies {
-			if _, uniq := uniq_c[fmt.Sprint(uniq_c)]; !uniq {
-				c_array1 = append(c_array1, c)
-			}
-
-		}
-		cj.cookies.Set(tmp, c_array1)
-		return
-
-	}
-	c_array2 := []*http.Cookie{}
-	for _, c := range append(cookies, c_array...) {
-		if _, uniq := uniq_c[fmt.Sprint(uniq_c)]; !uniq {
-			c_array2 = append(c_array2, c)
-		}
-	}
-
-	cj.cookies.Set(tmp, c_array2)
-}
-
 func NewNetworkClient(ctx ftp_context.Context) (cl *http.Client, err log_item.LogErr) {
 	loc := log_item.Loc("NewNetworkClient(ctx ftp_context.Context)(cl *http.Client, err log_item.LogErr )")
+	jar, err1 := cookiejar.New(&cookiejar.Options{})
+	if err1 != nil {
+		err = log_item.NewLogItem(loc, log_item.LogLevelError02).SetAfterf("jar, err1 := cookiejar.New(&cookiejar.Options{})").SetMessage(err1.Error()).AppendParentError(err1)
+		return
+	}
 	cl = &http.Client{
-		Jar: NewCookieJar(),
+		Jar: jar,
 	}
 
 	tmp, err1 := os.ReadFile("./data/certs/ca_certs.json")

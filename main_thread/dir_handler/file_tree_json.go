@@ -23,6 +23,8 @@ var FileTree = NewFileTreeJson()
 type FileState string
 
 const (
+	FileStateMissing    FileState = "missing"
+	FileStateToRead     FileState = "to-read"
 	FileStateHashed     FileState = "hashed"
 	FileStateToHash     FileState = "to-hash"
 	FileStateUploaded   FileState = "uploaded"
@@ -38,10 +40,10 @@ const (
 type FileTreeJson struct {
 	lock       sync.RWMutex
 	Extensions map[string]bool
-	// uses file_path as key on client | uses file_hash as key on server
+	// uses file_path as key on client because file path is unique
 	FileMap ftp_base.MutexedMap[*filehandler.FileHash] `json:"files"`
 
-	// uses file_path as key on client | uses file_hash as key on server
+	//  uses file_hash as key because hash is unique both client and server-side
 	FileState ftp_base.MutexedMap[FileState] `json:"file_state"`
 }
 
@@ -91,47 +93,45 @@ func NewFileTreeJson() *FileTreeJson {
 	}
 }
 
-func WriteFileTree(ctx ftp_context.Context, lock_file_p string, file_tree_path string) (err error) {
+func WriteFileTree(ctx ftp_context.Context, file_tree_path string) (err error) {
 	loc := log_item.Loc("WriteFileTree() (err log_item.LogErr)")
-	FileTree.RLock()
-	defer FileTree.RUnlock()
+	lock_file_p := file_tree_path + "/file-tree.lock"
+	log.Println(lock_file_p)
+
 	l, err1 := filehandler.Lock(lock_file_p)
-	if err1 != nil {
-		Logger.LogErr(loc, err1)
-		<-time.After(time.Second * 5)
-		return WriteFileTree(ctx, lock_file_p, file_tree_path)
+	for i := 0; ; i += 1 {
+		if err1 != nil {
+			select {
+			case <-ctx.Done():
+				return Logger.LogErr(loc, err1)
+			case <-time.After(time.Second * 5):
+				if i >= 5 {
+					return Logger.LogErr(loc, err1)
+				}
+			}
+			l, err1 = filehandler.Lock(file_tree_path + "/file-tree.lock")
+			continue
+		}
+		break
 	}
 	defer l.Unlock()
 
+	if FileTree == nil {
+		log.Fatalln("missing file-tree")
+	}
+	FileTree.Lock()
 	tmp, err1 := json.MarshalIndent(FileTree, " ", "\t")
+	FileTree.Unlock()
 	if err1 != nil {
 		return Logger.LogErr(loc, err1)
 	}
-	err2 := os.WriteFile(file_tree_path, tmp, fs.FileMode(ftp_base.S_IRWXU|ftp_base.S_IRWXO))
+	err2 := os.WriteFile(file_tree_path+"/file-tree.json", tmp, fs.FileMode(ftp_base.S_IRWXU|ftp_base.S_IRWXO))
 	if err2 != nil {
 		return Logger.LogErr(loc, err2)
 	}
 
+	Logger.Logf(loc, "updated file-tree successfully")
 	return
-}
-
-func UpdateFileTree(ctx ftp_context.Context, lock_file_p string, file_tree_path string) {
-	loc := log_item.Loc("UpdateFileTree(ctx ftp_context.Context)")
-
-	defer ctx.Finished()
-	tc := time.NewTicker(time.Minute)
-	for ok := true; ok; {
-		select {
-		case <-tc.C:
-		case _, ok = <-ctx.Done():
-		}
-
-		err := WriteFileTree(ctx, lock_file_p, file_tree_path)
-		if err != nil {
-			Logger.LogErr(loc, err)
-		}
-		Logger.Logf(loc, "updated filetree successfully")
-	}
 }
 
 func (ft *FileTreeJson) Lock() {
